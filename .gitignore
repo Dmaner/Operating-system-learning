@@ -1,3 +1,5 @@
 *.exe
 test.sh
 test.cpp
+.vscode
+source-code
