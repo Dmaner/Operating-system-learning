@@ -1,5 +1,7 @@
 *.exe
 test.sh
 test.cpp
-.vscode
+.vscode*
 source-code
+*.json
+*.out
