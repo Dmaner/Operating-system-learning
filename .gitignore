@@ -1,6 +1,6 @@
 *.exe
 .vscode*
-source-code
+apue/source-code/*
 *.json
 *.out
 test.*
