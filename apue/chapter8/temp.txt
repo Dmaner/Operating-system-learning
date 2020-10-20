@@ -1,0 +1,5 @@
+a write to stdout
+before fork
+pid = 344, var = 89, global var = 3
+before fork
+pid = 343, var = 88, global var = 2
