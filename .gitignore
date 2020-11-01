@@ -4,3 +4,5 @@ apue/source-code/*
 *.json
 *.out
 test.*
+qemu*
+riscv*
