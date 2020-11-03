@@ -6,3 +6,5 @@ apue/source-code/*
 test.*
 qemu*
 riscv*
+*.pdf
+xv6*
