@@ -1,0 +1,31 @@
+1.Which registers contain arguments to functions? For example, which register holds 13 in main's call to printf?
+
+a0保存寄存器返回值，a1寄存器保存12， a2寄存器保存13
+
+2.Where is the call to function f in the assembly code for main? Where is the call to g? 
+
+这里我估计编译器做了优化，直接用计算结果替换了函数调用过程，因为我把f(8)改成g(8),call.asm文件并没有变化，
+f(8)改成f(9)，也只是立即数发生了改变
+
+3.At what address is the function printf located?
+
+0000000000000628
+
+4.What value is in the register ra just after the jalr to printf in main?
+
+64e:	00000097          	auipc	ra,0x0
+这里可以看出ra保存的是当前pc的值
+
+5.Run the following code.
+
+	unsigned int i = 0x00646c72;
+	printf("H%x Wo%s", 57616, &i);
+      
+What is the output?
+
+He110 World
+
+6.In the following code, what is going to be printed after 'y='? Why does this happen?
+	printf("x=%d y=%d", 3);
+
+未定义行为，y会等于随机数
