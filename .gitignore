@@ -8,3 +8,4 @@ qemu*
 riscv*
 *.pdf
 xv6*
+unpv13e/*
