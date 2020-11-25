@@ -1,5 +1,4 @@
 *.exe
-.vscode*
 apue/source-code/*
 *.json
 *.out
@@ -9,3 +8,4 @@ riscv*
 *.pdf
 xv6*
 unpv13e/*
+books/*
