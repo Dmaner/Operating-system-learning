@@ -27,14 +27,26 @@ struct task_struct {
     /* 大内核锁深度 */ 
     int lock_depth;
 
-    int prio, static_prio, normal_prio; 
+    /* 动态优先级 */
+    int prio;
+    /* 普通优先级 */
+    int normal_prio;
+    /* 静态优先级, 进程启动时分配 */
+    int static_prio; 
+    /* 包含个进程进程的运行表 */
     struct list_head run_list;
+
+    /* 进程所属调度器类 */
     const struct sched_class *sched_class; 
+    /* 调度器类通过该属性调度进程 */
     struct sched_entity se;
     
     unsigned short ioprio;
+    /* 进程调度策略 */
     unsigned long policy; 
+    /* 针对多处理器系统, 限制进程在那些cpu上运行 */
     cpumask_t cpus_allowed; 
+    /* 该进程在cpu上剩余运行时间 */
     unsigned int time_slice;
 #if defined(CONFIG_SCHEDSTATS) || define (CONFIG_TASK_DELAY_ACCT) 
     struct sched_info sched_info;
@@ -86,6 +98,7 @@ struct task_struct {
     /* CLONE_CHILD_CLEARTID */
     int __user *clear_child_tid;
 
+    /* 实时优先级 */
     unsigned long rt_priority;
     cputime_t utime, stime, utimescaled, stimescaled; 
     
@@ -171,6 +184,10 @@ struct task_struct {
 }; 
 ```
 
+task_struct和thread_info以及内核栈的关系
+
+![图1](./images/task_structure&thread_info.png)
+
 线程ID
 
 > 进程在该命名空间下的唯一标识
@@ -225,7 +242,7 @@ struct upid {
 do_fork
 |----> 复制父进程
 |    |----> 检查标志
-|    |----> dup_task_struct
+|    |----> dup_task_struct建立父进程的task_struct副本
 |    |----> 检查资源限制
 |    |----> 初始化task_struct结构
 |    |----> sched_fork
@@ -246,4 +263,190 @@ do_fork
 |    |----> wait_for_completion
 ```
 
-`exec`系列函数
+`exec`系列函数 
+
+`execve`系统调用入口为`sys_execve`函数, 核心函数为`do_execve`
+
+```c
+// kernel/exec.c (2.6版本)
+int do_execve(char* filename, 
+              char* __user *__user *argv,
+              char* __user *__user *envp,
+              struct pt_regs *regs)
+```
+
+`do_execve`函数流程
+
+```shell
+do_execve
+|----> 打开可执行文件
+|    |----> bprm_init
+|    |    |----> mm_alloc
+|    |    |----> init_new_context
+|    |    |----> __bprm_mm_init
+|    |----> prepare_binprm
+|    |----> 复制环境和参数数组内容
+|    |----> search_binary_handler
+```
+
+### 进程调度
+
+调度子系统图示
+
+![图4](./images/exchange-system.png)
+
+- 主调度器
+> 进程打算睡眠或者其他原因放弃CPU
+- 周期性调度器
+> (1) 管理内核中与整个系统和各个进程的调度相关的统计量。其间执行的主要操作是对各种计数器加1，
+> (2) 激活负责当前进程的调度类的周期性调度方法。
+
+
+上述两个组件又统称为通用调度器或者核心调度器
+
+
+- 调度器类
+> 调度器类用于判断接下来运行哪个进程。内核支持不同的调度策略（完全公平调度、实时调度、 在无事可做时调度空闲进程）
+> 调度类使得能够以模块化方法实现这些策略，即一个类的代码不需要与其他类的代码交互, 在调度器被调用时，它会查询调度器类，得知接下来运行哪个进程。每个进程都对应一个调度器类
+
+调度器类主要源码
+```c
+// <sched.h> 
+struct sched_class { 
+    /* 将所有调度器类组合成链表, 在编译期构建此链表 
+     * 且链表构建从前往后顺序为 
+     * 实时进程 > 完全公平进程 > 空闲进程 */
+    const struct sched_class *next;
+
+    /* 添加进程到就绪队列 */
+    void (*enqueue_task) (struct rq *rq, struct task_struct *p, int wakeup); 
+    /* 从就绪队列删除进程 */
+    void (*dequeue_task) (struct rq *rq, struct task_struct *p, int sleep); 
+    /* 进程自愿放弃cpu */
+    void (*yield_task) (struct rq *rq);
+    /* 唤醒新进程抢占当前进程, 比如fork */
+    void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
+    /* 选择下一个进程 */
+    struct task_struct * (*pick_next_task) (struct rq *rq); 
+    void (*put_prev_task) (struct rq *rq, struct task_struct *p); 
+    /* 进程调度策略改变时调用 */
+    void (*set_curr_task**) (struct rq *rq);
+    /* 在周期性调度器激活时调用 */
+    void (*task_tick) (struct rq *rq, struct task_struct *p); 
+    /* fork时建立调度器和新进程的关系 */
+    void (*task_new) (struct rq *rq, struct task_struct *p);
+};
+```
+
+`struct rq`为就绪队列管理活动进程
+
+就绪队列主要源码
+```c
+// kernel/sched.c 
+struct rq {
+    /* 可运行进程数目 */
+    unsigned long nr_running; 
+#define CPU_LOAD_IDX_MAX 5
+    /* 跟踪此前负载 */
+    unsigned long cpu_load[CPU_LOAD_IDX_MAX];
+... 
+    /* 就绪队列当前负载 */
+    struct load_weight load;
+    
+    /* 子就绪队列用于完全公平调度器 */
+    struct cfs_rq cfs; 
+    /* 子就绪队列用于实时调度器 */
+    struct rt_rq rt;
+
+    /* curr指向当前进程, 
+     * idle指向idle进程
+     * (当系统中没有任何进程可以调度时进入idle进程) */
+    struct task_struct *curr, *idle; 
+    u64 clock;
+...
+};
+```
+调度实体
+
+```c
+// <sched.h> 
+struct sched_entity {
+    /* 各个实体占就绪队列总负荷的比例 */
+    struct load_weight load;  
+    /* 红黑树节点 */
+    struct rb_node run_node; 
+    /* 是否接受调度 */
+    unsigned int on_rq;
+    /* 加入就绪队列时间 */
+    u64 exec_start; 
+    /* 总的调度时间 */
+    u64 sum_exec_runtime;
+    /* 记录进程执行消耗的虚拟事件 */ 
+    u64 vruntime; 
+    u64 prev_sum_exec_runtime;
+...
+}
+```
+
+优先级内核表示
+
+![图5](./images/priority-linux.png)
+
+
+优先级计算
+
+![图6](./images/priority-calculate.png)
+
+
+- 上下文切换
+
+```c
+// kernel/sched.c 
+static inline void
+context_switch(struct rq *rq, struct task_struct *prev, struct task_struct *next)
+{ 
+    struct mm_struct *mm, *oldmm;
+    prepare_task_switch(rq, prev, next); 
+    mm = next->mm;
+    oldmm = prev->active_mm;
+...
+    if (unlikely(!mm)) {
+        next->active_mm = oldmm; 
+        atomic_inc(&oldmm->mm_count);
+        /* 惰性TLB */ 
+        enter_lazy_tlb(oldmm, next);
+    } else
+        /* 切换内存管理上下文 */
+        switch_mm(oldmm, mm, next);
+...
+    /* 这里我们只是切换寄存器状态和栈。 */ 
+    switch_to(prev, next, prev);
+    barrier(); 
+    finish_task_switch(this_rq(), prev);
+}
+```
+
+### 一些具体调度器类
+
+- 公平调度器类
+
+```c
+// kernel/sched_fair.c 
+static const struct sched_class fair_sched_class = { 
+    .next = &idle_sched_class, 
+    .enqueue_task = enqueue_task_fair, 
+    .dequeue_task = dequeue_task_fair, 
+    .yield_task = yield_task_fair,
+    .check_preempt_curr = check_preempt_wakeup,
+    .pick_next_task = pick_next_task_fair,
+    .put_prev_task = put_prev_task_fair,
+... 
+    .set_curr_task = set_curr_task_fair, 
+    .task_tick = task_tick_fair, 
+    .task_new = task_new_fair,
+};
+```
+
+- 实时调度器类
+
+- 调度器增强
