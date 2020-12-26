@@ -232,7 +232,7 @@ struct upid {
 `fork`系列函数
 
 - `fork :` 创建父进程的副本     
-- `vfork`(因为fork目前实现了写时复制, 而且比fork块, 故很少使用了) 
+- `vfork :`(因为fork目前实现了写时复制, 而且比fork块, 故很少使用了) 
 - `clone :` 产生线程
 
 上述三个函数都需要依靠核心函数`do_fork`函数实现(内核2.6版本)
@@ -367,6 +367,7 @@ struct rq {
 };
 ```
 调度实体
+> 绑定相应进程,进行调度, 或者用于组调度
 
 ```c
 // <sched.h> 
@@ -428,7 +429,7 @@ context_switch(struct rq *rq, struct task_struct *prev, struct task_struct *next
 
 ### 一些具体调度器类
 
-- 公平调度器类
+#### 公平调度器类(CFS)
 
 ```c
 // kernel/sched_fair.c 
@@ -446,7 +447,67 @@ static const struct sched_class fair_sched_class = {
     .task_new = task_new_fair,
 };
 ```
+CFS的就绪队列
 
-- 实时调度器类
+```c
+// kernel/sched.c 
+struct cfs_rq {
+    struct load_weight load;        /* 进程负荷值 */ 
+    unsigned long nr_running;       /* 队列上可运行的进程数 */
+    u64 min_vruntime;               /* 所有进程最小运行时间 */
+    struct rb_root tasks_timeline;  /* 红黑树节点管理所有进程 */
+    struct rb_node *rb_leftmost;    /* 最左节点最需要管理的进程 */
+    struct sched_entity *curr;      /* 指向当前进程的可调度实体 */
+}
+```
 
-- 调度器增强
+CFS的调度方法
+
+```shell
+1.计算虚拟时钟 # TODO 实现红黑树
+2.延迟追踪
+```
+
+#### 实时调度器类
+
+> 实时进程与普通进程有一个根本的不同之处：如果系统中有一个实时进程且可运行，那么调度器 总是会选中它运行，除非有另一个优先级更高的实时进程。
+
+实时进程调度类代码
+
+```c
+// kernel/sched-rt.c 
+const struct sched_class rt_sched_class = { 
+    .next = &fair_sched_class, 
+    .enqueue_task = enqueue_task_rt, 
+    .dequeue_task = dequeue_task_rt, 
+    .yield_task = yield_task_rt,
+    .check_preempt_curr = check_preempt_curr_rt,
+    .pick_next_task = pick_next_task_rt, 
+    .put_prev_task = put_prev_task_rt,
+    .set_curr_task = set_curr_task_rt, 
+    .task_tick = task_tick_rt,
+};
+```
+
+两种实时类
+
+- 循环进程
+- FIFO进程
+
+实时进程就绪队列
+
+![图七](images/rt-rq.png)
+
+### 调度器增强
+
+- SMP调度
+  - 数据结构扩展
+  - 迁移线程
+  - 核心调度器改变
+- 调度域和控制组
+- 内核抢占
+- 低延迟
+
+### 参考文章
+
+https://www.cnblogs.com/LoyenWang/p/12249106.html
