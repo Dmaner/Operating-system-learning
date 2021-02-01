@@ -19,15 +19,15 @@
 `/etc/passwd`存储用户信息，一行存一个，格式如下
 `name:password:uid:gid:comment:home:shell`
 - 解释
-（1）name ：用户名。
-（2）password：密码（x表示加密，空则不需要输入密码）
-（3）uid ：UID（用户标识）,操作系统自己用的
-（4）gid ：GID组标识。
-（5）comment：用户全名或本地帐号
-（6）home：开始目录
-（7）shell：登录使用的Shell，就是对登录命令进行解析的工具
+1. name ：用户名。
+2. password：密码（x表示加密，空则不需要输入密码）
+3. uid ：UID（用户标识）,操作系统自己用的
+4. gid ：GID组标识。
+5. comment：用户全名或本地帐号
+6. home：开始目录
+7. shell：登录使用的Shell，就是对登录命令进行解析的工具
 - 例子
-root:x:0:0:root:/root:/bin/bash
+root : x : 0 : 0 : root : /root : /bin/bash
 
 # 进程
 
