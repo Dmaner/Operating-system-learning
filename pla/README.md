@@ -10,7 +10,7 @@
 - Chapter 13 - 系统调用
 - Chapter 14 - 内核活动
 - Chapter 15 - 块缓存和页缓存
-- 附录E - ELF二进制结构
+- [附录E - ELF二进制结构](https://zhuanlan.zhihu.com/p/348777589)
 
 ### 实现一些相关结构
 
