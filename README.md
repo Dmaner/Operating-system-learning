@@ -9,5 +9,5 @@
 > <font face="Consolas"> Unix systems learning.<br>
 - [X] Modern operating system chapter (1 - 8)<br>
 - [ ] [Professional Linux Kernel Architecture](./pla)<br>
-- [ ] [The Linux Programming Interface: A Linux and UNIX System Programming Handbook](./TLPI)<br>
+- [ ] [The Linux Programming Interface: A Linux and UNIX System Programming Handbook](https://github.com/Dmaner/TLPL)<br>
 </font>
